@@ -1764,7 +1764,7 @@ function createExportWrapper(name) {
 // include: runtime_exceptions.js
 // end include: runtime_exceptions.js
 var wasmBinaryFile;
-  wasmBinaryFile = 'TimeTwisted2.wasm.part1', 'TimeTwisted2.wasm.part2';
+  wasmBinaryFile = 'TimeTwisted2-standalone.wasm';
   if (!isDataURI(wasmBinaryFile)) {
     wasmBinaryFile = locateFile(wasmBinaryFile);
   }
