@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+	<!-- For Favicons -->
+    <link rel="icon" type="x-icon" href="favicon.ico">
+    <base href="https://cdn.jsdelivr.net/gh/ant9012/codeberg-pages-mirror@pages/stt-web-port/"/>
+	<!-- For Page Title -->
+    <title>Sonic Time Twisted</title>
+    <style>
+      @-webkit-keyframes rotation {
+        from {
+          -webkit-transform: rotate(0deg);
+        }
+
+        to {
+          -webkit-transform: rotate(360deg);
+        }
+      }
+
+      @-moz-keyframes rotation {
+        from {
+          -moz-transform: rotate(0deg);
+        }
+
+        to {
+          -moz-transform: rotate(360deg);
+        }
+      }
+
+      @-o-keyframes rotation {
+        from {
+          -o-transform: rotate(0deg);
+        }
+
+        to {
+          -o-transform: rotate(360deg);
+        }
+      }
+
+      @keyframes rotation {
+        from {
+          transform: rotate(0deg);
+        }
+
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      html {
+        background: #FFFFFF;
+      }
+
+      body {
+        font-family: arial;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
+        min-height: fill-available;
+        min-height: 100vh; /* Otherwise contents can be covered by an address bar in Safari on iOS 15 */
+        min-width: 100vw;
+        background: radial-gradient(
+          56.63% 56.63% at 50% 43.37%,
+          transparent 0%,
+          transparent 100%
+        );
+		background-color: black;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+		place-items: center;
+      }
+
+      body.scrollingDisabled {
+        overflow: hidden;
+      }
+
+      .emscripten {
+        padding-right: 0;
+        display: block;
+      }
+
+      div.emscripten {
+        text-align: center;
+		font-family: "Lucida Console", Monaco, monospace;
+      }
+
+      /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+      canvas.emscripten {
+        display: none;
+        background-color: black;
+        position: flex;
+        transition: opacity 5s ease-in;
+        -webkit-transition: opacity 5s ease-in;
+        opacity: 0;
+        filter: blur(0) grayscale(0);
+        image-rendering: optimizeSpeed;             /* Older versions of FF          */
+        image-rendering: -moz-crisp-edges;          /* FF 6.0+                       */
+        image-rendering: -webkit-optimize-contrast; /* Safari                        */
+        image-rendering: -o-crisp-edges;            /* OS X & Windows Opera (12.02+) */
+        image-rendering: pixelated;                 /* Awesome future-browsers       */
+        -ms-interpolation-mode: nearest-neighbor;   /* IE                            */
+      }
+
+      canvas.active {
+        animation-name: fadeIn;
+        animation-duration: 2s;
+        opacity: 1;
+      }
+
+      canvas.paused {
+        animation-name: blur;
+        animation-duration: 0.5s;
+        filter: blur(2px) grayscale(1);
+      }
+
+      canvas.unpaused {
+        animation-name: none;
+      }
+
+      canvas.animatedSizeTransitions {
+        transition: width 0.3s ease, height 0.3s ease;
+      }
+
+      @keyframes fadeIn {
+        0% {
+          opacity: 0;
+        }
+
+        100% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes blur {
+        0% {
+          filter: blur(0) grayscale(0);
+        }
+
+        100% {
+          filter: blur(2px) grayscale(1);
+        }
+      }
+
+      .spinner {
+        height: 30px;
+        width: 30px;
+
+        -webkit-animation: rotation 0.8s linear infinite;
+        -moz-animation: rotation 0.8s linear infinite;
+        -o-animation: rotation 0.8s linear infinite;
+        animation: rotation 0.8s linear infinite;
+
+        border: 5px solid #bdff00;
+        border-top: 5px solid #719900;
+        border-radius: 100%;
+      }
+
+      #status {
+        display: inline-block;
+        vertical-align: top;
+        font-weight: bold;
+        color: white;
+      }
+
+      #progress {
+        width: 250px;
+        height: 10px;
+        -webkit-appearance: none;
+        appearance: none;
+        padding: 5px;
+      }
+
+      /* Determines the style of the background of the progress bar */
+      progress[value]::-webkit-progress-bar {
+        background-color: #8492a6;
+        height: 10px;
+        border-radius: 15px;
+      }
+      /* Determines the style of the completed part of the progress bar */
+      progress[value]::-webkit-progress-value {
+        background-image: -webkit-linear-gradient(left, #719900, #bdff00);
+        height: 10px;
+        border-radius: 15px;
+      }
+
+      div.loading {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        pointer-events: none;
+      }
+      div.loading > * {
+        padding: 10px;
+        margin: 10px;
+      }
+
+      .output-container {
+        text-align: center;
+        margin-top: auto;
+      }
+      .output-button {
+        border: none;
+        width: 200px;
+        height: 25px;
+        margin: 5px;
+        border-radius: 5px;
+        cursor: pointer;
+        background-color: black;
+        color: white;
+		outline-color: #20c20e;
+		outline-style: dashed;
+        font-family: "Lucida Console", Monaco, monospace;
+      }
+
+      #output {
+        display: none;
+        height: 200px;
+        background-color: black;
+        color: white;
+        font-family: "Lucida Console", Monaco, monospace;
+        outline: none;
+        border: none;
+        padding: 0;
+        width: 100%;
+      }
+
+      #message-container {
+        display: none;
+        min-height: 50px;
+        background-color: rgba(20, 20, 20, 0.5);
+        outline: none;
+        border: none;
+        padding: 0;
+        width: 100%;
+        position: absolute;
+        top: 0;
+      }
+
+      #messages {
+        margin-left: 50px;
+        color: white;
+        font-family: "Lucida Console", Monaco, monospace;
+        outline: none;
+        border: none;
+        padding: 0;
+      }
+
+      img.qrCode {
+         opacity: 1.0;
+         width: 50%;
+         height: 50%;
+      }
+
+      #pauseMenuContainer {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      #pauseMenuContainer[hidden] {
+        display: none !important;
+        opacity: 0;
+      }
+
+      #pauseMenuBorder {
+        background: linear-gradient(135deg, #FA1E4E, transparent 40%);
+        padding: 1px;
+        border-radius: 4px;
+        clip-path: polygon(10.5px 0, 100% 0, 100% 100%, 0 100%, 0 10.5px);
+        width: 70vw;
+        max-width: 400px;
+      }
+
+      #pauseMenu {
+        display: flex;
+        flex-direction: column;
+        padding: 60px 30px 60px 30px;
+        background: linear-gradient(180deg, #2E273F 16.15%, rgba(46, 39, 63, 0.79) 56.25%, #2E273F 91.15%);
+        border-radius: 4px;
+        clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+        animation-name: fadeIn;
+        animation-duration: 0.5s;
+        opacity: 1;
+      }
+
+      #pauseMenu button {
+        font-weight: 500;
+        font-size: 17px;
+        color: white;
+        background: #FA1E4E;
+        border: 1px solid #FA1E4E;
+        border-radius: 6px;
+        padding: 12px 24px;
+        margin: 5px 0;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      #pauseMenu button#quitButton {
+        background: #FA1E4E40;
+      }
+
+      #pauseMenu button:hover {
+        filter: brightness(1.15);
+      }
+
+      #pauseMenu button:active {
+        filter: brightness(0.85);
+      }
+
+      #pauseMenu button[hidden] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas
+      class="emscripten"
+      id="canvas"
+      oncontextmenu="event.preventDefault()"
+      tabindex="-1"
+    >
+    </canvas>
+    <div id="pauseMenuContainer" hidden>
+      <div id="pauseMenuBorder">
+        <div id="pauseMenu">
+          <button id="resumeButton" onclick="resume()">
+            Resume
+          </button>
+          <button id="quitButton" onclick="quitIfSupported()">
+            Quit
+          </button>
+        </div>
+        </div>
+    </div>
+    <div class="loading">
+      <div class="spinner" id="spinner"></div>
+      <div class="emscripten" id="status">Downloading...</div>
+
+      <progress value="0" max="100" id="progress" hidden="1"></progress>
+    </div>
+    <div class="output-container" id="output-container">
+	  <!-- Stock Toggle Console Button -->
+      <button class="output-button" onclick="toggleConsole()" title="Lists Console Output and Loading Progress"+>
+        Toggle Console
+      </button>
+	  <!-- Go to Github Repo Button -->
+      <button id="QRButton" class="output-button" onclick="togglegithub()" title="Sends you to My Github Repository of this Project"+>
+        Visit Github Repo
+      </button>
+	  <!-- CLear Site Cache Button -->
+      <button id="QR2Button" class="output-button" onclick="toggleclear_site_cache()" title="Fixes Crashes due to the Website being Updated, but also Deletes ALL Saves, so Continue with Caution"+>
+        Clear Site Cache
+      </button>
+		<!-- Enable FPS Counter Bookmarklet Button -->
+      <button class="output-button" id="stats-button" onclick="toggleFPS()" title="Enables External FPS Counter"+>
+        Enable FPS Counter
+      </button>
+	    <!-- Go to Web Port Website Button -->
+      <button class="output-button" id="share-button" onclick="togglewebports()" title="Sends you to My Personal Website with a List of All My Web Ports"+>
+        My GitHub Profile
+      </button>
+	    <!-- Join Discord Server Button -->
+	  <button class="output-button" onclick="togglejoin_discord()" title="Press to Join My Discord Server for Info and Updates"+>
+        Join Discord Server
+      </button>
+	    <!-- Background Color Changer Button -->
+      <input id="colorpicker" type="color" onchange="changecolor(this)" title="Changes Color of the Website's Background"+>
+      <textarea id="output" rows="8"></textarea>
+    </div>
+
+    <div id="message-container">
+      <div id="messages">
+      </div>
+    </div>
+	<!-- Ads Stuff for games that need it -->
+   <script async
+     data-ad-client="ca-pub-123"
+     data-ad-frequency-hint="30s"
+     data-adbreak-test="on"
+     src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js">
+   </script>
+
+   <script>
+     window.adsbygoogle = window.adsbygoogle || [];
+     const adBreak =  adConfig = function(o) {adsbygoogle.push(o);}
+   </script>
+
+    <script type="text/javascript">
+	// Background Color Changer Function
+	function changecolor(el) {
+		document.body.style.backgroundColor = el.value;
+	}
+
+      const CHANGE_ASPECT_RATIO = true;
+		// Main Page Elements
+      var bodyElement = document.getElementsByTagName("body")[0];
+      var statusElement = document.getElementById("status");
+      var progressElement = document.getElementById("progress");
+      var spinnerElement = document.getElementById("spinner");
+      var canvasElement = document.getElementById("canvas");
+      var outputElement = document.getElementById("output");
+      var outputContainerElement = document.getElementById("output-container");
+      var qrElement = document.getElementById("QRCode");
+      var qr2Element = document.getElementById("QR2Code");
+      var qrButton = document.getElementById("QRButton");
+      var qr2Button = document.getElementById("QR2Button");
+      var pauseMenu = document.getElementById("pauseMenuContainer");
+      var resumeButton = document.getElementById("resumeButton");
+      var quitButton = document.getElementById("quitButton");
+
+      const messageContainerElement = document.getElementById("message-container");
+      const messagesElement = document.getElementById("messages");
+      let rollbackMessages = [];
+
+      let clearRollbackMessagesTimeoutId = -1;
+      const showRollbackMessage = function (message) {
+        let messages = "";
+        rollbackMessages.push(message);
+        rollbackMessages.forEach(m => messages += "<p>" + m + "</p>");
+
+        messagesElement.innerHTML = messages;
+        messageContainerElement.style.display = 'block';
+
+        if (clearRollbackMessagesTimeoutId === -1) {
+          clearTimeout(clearRollbackMessagesTimeoutId);
+        }
+        clearRollbackMessagesTimeoutId = setTimeout(clearRollbackMessages, 5000);
+      };
+
+      const clearRollbackMessages = function () {
+        clearRollbackMessagesTimeoutId = -1;
+        rollbackMessages = [];
+        messageContainerElement.style.display = 'none';
+      };
+
+	  // for displaying contents of console to display as a single line of text
+	  // stopload is set to 0, as to initialize it
+	  var loadprogress = 0;
+
+      var startingHeight, startingWidth;
+      var startingAspect;
+      var Module = {
+        preRun: [],
+        postRun: [],
+        print: (function () {
+          var element = document.getElementById("output");
+          if (element) element.value = ""; // clear browser cache
+          return function (text) {
+
+		  // for displaying contents of console to display as a single line of text
+		  // if loading has started
+			if (text === "Starting WAD") {
+			// tells if statement below to display ALL loading strings
+				loadprogress += 1;
+			}
+
+			// if loading has started
+			if (loadprogress === 1) {
+			// allow console to be displayed as text on-screen
+				Module.setStatus(text);
+			}
+			// if game has started
+			// greater than or equal to just in case
+			else if (loadprogress >= 2) {
+			// then set load text to nothing
+				Module.setStatus("");
+			}
+		    // back to normal shit
+
+            if (arguments.length > 1)
+              text = Array.prototype.slice.call(arguments).join(" ");
+			// for normal console
+            console.log(text);
+            if (text === "Entering main loop.") {
+              // It seems that this text ensures game is loaded.
+              ensureAspectRatio();
+			  // below are custom
+			  // stops loading text on game run
+			  loadprogress += 1;
+              // This Forces 1920x1080 aspect ratio on game startup
+              canvas.width = 1920;
+              canvas.height = 1080;
+
+			  // TRUE END of custom shit
+            }
+            if (element) {
+              element.value += text + "\n";
+              element.scrollTop = element.scrollHeight; // focus on bottom
+            }
+          };
+        })(),
+        printErr: function (text) {
+          if (arguments.length > 1)
+            text = Array.prototype.slice.call(arguments).join(" ");
+          console.error(text);
+        },
+        canvas: (function () {
+          var canvas = document.getElementById("canvas");
+
+          return canvas;
+        })(),
+        setStatus: function (text) {
+          if (!Module.setStatus.last)
+            Module.setStatus.last = { time: Date.now(), text: "" };
+          if (text === Module.setStatus.last.text) return;
+          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+          var now = Date.now();
+          if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
+          Module.setStatus.last.time = now;
+          Module.setStatus.last.text = text;
+          if (m) {
+            text = m[1];
+            progressElement.value = parseInt(m[2]) * 100;
+            progressElement.max = parseInt(m[4]) * 100;
+            progressElement.hidden = false;
+            spinnerElement.hidden = false;
+          } else {
+            progressElement.value = null;
+            progressElement.max = null;
+            progressElement.hidden = true;
+
+            // If there are no status text, we are finished and can display
+            // the canvas and hide the spinner
+            if (!text) {
+              spinnerElement.style.display = "none";
+              canvasElement.style.display = "block";
+            }
+          }
+          statusElement.innerHTML = text;
+        },
+        totalDependencies: 0,
+        monitorRunDependencies: function (left) {
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+          Module.setStatus(
+            left
+              ? "Preparing... (" +
+                  (this.totalDependencies - left) +
+                  "/" +
+                  this.totalDependencies +
+                  ")"
+              : "All downloads complete."
+          );
+        },
+      };
+      Module.setStatus("Downloading...");
+      window.onerror = function (event) {
+        // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
+        Module.setStatus("Exception thrown, see JavaScript console");
+        spinnerElement.style.display = "none";
+        Module.setStatus = function (text) {
+          if (text) Module.printErr("[post-exception status] " + text);
+        };
+      };
+
+      // Route URL GET parameters to argc+argv
+      if (typeof window === "object") {
+        Module['arguments'] = window.location.search.substr(1).trim().split('&');
+        // If no args were passed arguments = [''], in which case kill the single empty string.
+        if (!Module['arguments'][0]) {
+          Module['arguments'] = [];
+        }
+      }
+
+	  // All Button Functions
+
+		// Stock Toggle Console Function
+      function toggleConsole() {
+        var isShown = outputElement.style.display === "flex";
+        if (isShown) {
+          outputElement.style.display = "none";
+          outputElement.scrollIntoView(false);
+        } else {
+          outputElement.style.display = "flex";
+          outputElement.scrollIntoView(true);
+        }
+      }
+		// Go To Github Function
+      function togglegithub() {
+	    window.open("https://github.com/ant9012/stt-web-port", '_blank').focus();
+      }
+		// Clear Site Cache Function
+      function toggleclear_site_cache() {
+	  // Trigger Choice Popup
+		if (confirm("This Will Clear Site Cache\nThis will ALSO Clear ALL SAVES\nONLY do this if the Site has recently been Updated\nand if you are experiencing crashes relating to texture loading\nContinue?")) {
+		// User clicked OK
+
+		// Clear All IndexedDB Databases
+		(async () => {
+			const dbs = await window.indexedDB.databases();
+			dbs.forEach(db => { window.indexedDB.deleteDatabase(db.name) });
+			})();
+
+		//
+		alert("All Site Cache Has been Cleared!\nPlease reload the Page");
+		} else {
+		// User clicked Cancel
+		// Do nothing
+		}
+	  }
+
+		// Enable FPS Counter Button
+	  var stopfps = 0;
+      function toggleFPS() {
+	  // to stop it from making multiple instances after 1 has already been made
+	  stopfps += 1
+	  // if pressed ONLY once
+	  if (stopfps === 1) {
+	    window.location.href = "javascript:(function(){var script=document.createElement('script');script.onload=function(){var stats=new Stats();document.body.appendChild(stats.dom);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='https://mrdoob.github.io/stats.js/build/stats.min.js';document.head.appendChild(script);})()"
+        }
+		// so it can't go crazy high, but can't be activated again
+		if (stopfps >= 5) {
+		stopfps = 2;
+		}
+	  }
+	    // Go To Website of Web Ports Function
+	  function togglewebports() {
+		window.open("github.com/ant9012", '_blank').focus();
+	  }
+	    // Join Discord Function
+	  function togglejoin_discord() {
+	    window.open("https://discord.gg/tp6DAuewf", '_blank').focus();
+	  }
+		// End of Button Functions
+
+      var g_pWadLoadCallback = undefined;
+      function setWadLoadCallback( _wadLoadCallback )
+      {
+        g_pWadLoadCallback = _wadLoadCallback;
+      }
+
+      var g_pAddAsyncMethod = -1;
+
+      function setAddAsyncMethod( asyncMethod )
+      {
+        g_pAddAsyncMethod = asyncMethod;
+      }
+
+      var g_pJSExceptionHandler = undefined;
+
+      function setJSExceptionHandler( exceptionHandler )
+      {
+        if (typeof exceptionHandler == "function") {
+            g_pJSExceptionHandler = exceptionHandler;
+        } // end if
+      } // end setJSExceptionHandler
+
+      function hasJSExceptionHandler()
+      {
+        return (g_pJSExceptionHandler != undefined) && (typeof g_pJSExceptionHandler == "function");
+      } // end hasJSExceptionHandler
+
+      function doJSExceptionHandler( exceptionJSON )
+      {
+        if (typeof g_pJSExceptionHandler == "function") {
+          var exception = JSON.parse( exceptionJSON );
+          g_pJSExceptionHandler( exception );
+        } // end if
+      } // end doJSExceptionHandler
+
+		// Get Files
+      function manifestFiles()
+      {
+        return [ "TimeTwisted2-standalone.js",
+"game.unx",
+"TimeTwisted2.html",
+"TimeTwisted2.data",
+"TimeTwisted2.wasm.part1",
+"TimeTwisted2.wasm.part2",
+"assets/bgmrrfutureintro.ogg",
+"assets/bgmpp1intro.ogg",
+"assets/bgmrrpastintro.ogg",
+"assets/bgmgalanik1intro.ogg",
+"assets/bgmspecialfutureloop.ogg",
+"assets/bgmvvfutureintro.ogg",
+"assets/bgmpp2loop.ogg",
+"assets/bgmddfutureintro.ogg",
+"assets/bgmtitle.ogg",
+"assets/bgmaafutureloop.ogg",
+"assets/bgmintro.ogg",
+"assets/bgmrrpastloop.ogg",
+"assets/bgmgalanik1loop.ogg",
+"assets/bgmss2intro.ogg",
+"assets/bgmaapastloop.ogg",
+"assets/bgmttfutureintro.ogg",
+"assets/bgmmetalsonicloop.ogg",
+"assets/bgmclear.ogg",
+"assets/bgmddpastintro.ogg",
+"assets/bgmendinggood.ogg",
+"assets/bgmspecialpastintro.ogg",
+"assets/bgmddfutureloop.ogg",
+"assets/bgmspecialpastloop.ogg",
+"assets/bgmvvfutureloop.ogg",
+"assets/bgmaapastintro.ogg",
+"assets/bgmsavescreenloop.ogg",
+"assets/bgmsavescreenintro.ogg",
+"assets/bgmbossloop.ogg",
+"assets/bgmss2loop.ogg",
+"assets/bgmmetalsonicintro.ogg",
+"assets/bgmgameover.ogg",
+"assets/bgmaafutureintro.ogg",
+"assets/bgmss1intro.ogg",
+"assets/bgmspecialfutureintro.ogg",
+"assets/bgmfffutureloop.ogg",
+"assets/bgmgalanik2loop.ogg",
+"assets/bgmrrfutureloop.ogg",
+"assets/bgmdrowning.ogg",
+"assets/bgmddpastloop.ogg",
+"assets/bgmpp2intro.ogg",
+"assets/bgminvincibility.ogg",
+"assets/bgmgalanik2intro.ogg",
+"assets/bgmttpastintro.ogg",
+"assets/bgmss1loop.ogg",
+"assets/bgmendingbad.ogg",
+"assets/bgmspeedup.ogg",
+"assets/bgmvvpastloop.ogg",
+"assets/bgmvvpastintro.ogg",
+"assets/bgmpp1loop.ogg",
+"assets/bgmttfutureloop.ogg",
+"assets/bgmffpastloop.ogg",
+"assets/bgmttpastloop.ogg",
+"assets/bgmbossintro.ogg",
+"assets/bgmffpastintro.ogg" ].join( ";");
+      }
+
+		// Verify Files
+      function manifestFilesMD5()
+      {
+        return [ "e90ac46d4725ea682e34a1f88fd1bda8",
+"8c6e814d7c52336c34a1b2a25ac03a8a",
+"ed1eb4a1f6b6069ce69f10ad60fb493d",
+"88eae0efae84a927f30257c521543764",
+"1d6f87428c614edd7168200202be8d4e",
+"0ad75ecebeed1d88c85fb7b9fd48c7c2",
+"f72beaf760ae66d625f2413feb2b7fff",
+"0f236a76e0d8d62b085c6183895b8b33",
+"445bbbac85ac7a37cc191611fd6e6311",
+"19c3cf25c44613b8784c9930c9f0caa7",
+"275f276db7c876d1c6863aee434e3acc",
+"b5bc6e49c6f8b3b5b0cf0648d6d054e4",
+"7bc56e93040b91c0eb47f8a652aeb23b",
+"9192abf2f8be589c08983203c520bc77",
+"57a8df18c7ec988bf3463b879f1a3ead",
+"2e8e7c4b3a1b97fad4cff1c7a8e3a462",
+"a6c95c267ef1ad175126acabf361542f",
+"014a3be9b79ba873ff8177e301999424",
+"20b92d64320f946e7427d39849a4f81e",
+"c7850270d2ca29ce9c7301f6a66ad1e8",
+"ec505780cf27f0432229380cd4a9d3d7",
+"189a7c1c431648629653a27fd9d17b3e",
+"fda68b318e53ccf6915e96cb8227be3c",
+"096776f7616fcabfc8ced1493cc43af0",
+"34762a7f3c3d10ec15566d3691626fff",
+"a4b03e77ab42043bb3120c4746e6216f",
+"66f71bc5043339fd1f8336d9059a5a13",
+"aa192a7487e2ab0458fb765797a50503",
+"f7b26286d5dbd382608a536f55ab4a84",
+"b0ec8ba533afc62e4d0dc31d0bfbc004",
+"e6d725cbbc5b411b14092981238605d8",
+"d7129b1f3b9f506ea713e3391f12a65d",
+"be1308f465e5b5101d28a16665d535f8",
+"2abbf7c541a977d7477de98e807e0fb7",
+"682d1120f0c56529c8262571b8d16019",
+"4b2ad7a410faa73e9ee6985c0b5f01f1",
+"450bf9c5d12f5cb761d3d41381466430",
+"41ed3602f45b32d0cacd3a53cd93d84d",
+"047c6eaec669a49b42a0d999ba52c6d1",
+"404865f20da6f8ce6c2875620710b45f",
+"85e97c99c1fdaf635d7217909be56010",
+"3427f6c1c40a3ab44c68b560f29a74a1",
+"38f650481a75e8317ccde5937b38a501",
+"8e7c9b2b993aca9d03884754ba0bc2c0",
+"9f467cf45120173d8c10a8f308db3bb5",
+"7020934b44d548e2849349b131def5d4",
+"3eccf30a92876a56163f4e0bd3f53c6e",
+"0b5c5276d6b054011b8cabc99a52891f",
+"545a0c4f2e500a470956ab074ebbaf94",
+"46792e41d61b319c7a50e5e5240ea94f",
+"bfcd2852c416f398af8751e7275fbbd6",
+"e7ef7efcd91779c1033a81bc7a8c628e",
+"46f1eecace5d753d267146411792d75f",
+"ae7494ac4596ea80a6b89ebf3ff17cdb",
+"54e2b4ac55eafdc63a786bc35d9afd8a",
+"6925d39ec8e70885abd4cb3d02fdc8e3",
+"a8d15b0956d9f2a1a69e83d2359f818f",
+"a5017bae34345c6ac290c7e58d954471",
+"5258b273bcc801def2a6d02dacdb36df" ];
+      }
+
+      function onFirstFrameRendered()
+      {
+          //console.log("First frame rendered!");
+      }
+
+      function onGameSetWindowSize(width,height)
+      {
+          if (startingHeight === undefined && startingWidth === undefined) {
+              console.log("Initial window size set to width: " + width + ", height: " + height);
+
+              startingHeight = height;
+              startingWidth = width;
+              startingAspect = startingWidth / startingHeight;
+          }
+      }
+
+	// Trigger Ads
+    function triggerAd(adId, _callback_beforeAd, _callback_afterAd, _callback_adDismissed, _callback_adViewed, _callback_adbreakDone) {
+       // need to take a copy of the RValues represented
+       var pRValueCopy = triggerAdPrefix( _callback_beforeAd, _callback_afterAd, _callback_adDismissed, _callback_adViewed, _callback_adbreakDone );
+       var pCallbackBeforeAd = pRValueCopy + (0*16);
+       var pCallbackAfterAd = pRValueCopy + (1*16);
+       var pCallbackAdDismissed = pRValueCopy + (2*16);
+       var pCallbackAdViewed = pRValueCopy + (3*16);
+       var pCallbackAdBreakDone = pRValueCopy + (4*16);
+
+       adBreak({
+         "type": "reward",                    // The type of this placement
+         "name": adId,                        // A descriptive name for this placement
+
+         "beforeAd": () => {                  // Prepare for the ad. Mute and pause the game flow
+           console.log("beforeAd");
+           // trigger _callback_beforeAd to game
+           doGMLCallback( pCallbackBeforeAd, { id:adId } );
+         },
+         "afterAd" : () => {                   // Resume the game and re-enable sound
+           console.log("afterAd");
+           // trigger _callback_afterAd to game
+           doGMLCallback( pCallbackAfterAd, { id:adId } );
+         },
+         "beforeReward": (showAdFn) => {      // Show reward prompt (call showAdFn() if clicked)
+           console.log("beforeReward");
+           showAdFn();
+           // Setup native prompt to indicate ad will load
+           // Will not be setup by dev so this UX controlled by GXC
+         },
+         "adDismissed": () => {               // Player dismissed the ad before it finished
+           console.log("adDismissed");
+           // trigger _callback_adDismissed to game
+           doGMLCallback( pCallbackAdDismissed, { id:adId } );
+         },
+         "adViewed": () => {                  // Player watched the ad–give them the reward.
+           console.log("adViewed");
+           // trigger _callback_adViewed to game
+           doGMLCallback( pCallbackAdViewed, { id:adId } );
+         },
+         "adBreakDone": (placementInfo) => {  // Always called (if provided) even if an ad didn't show
+           console.log("adBreakDone");
+           // trigger _callback_adBreakDone to game
+           doGMLCallback( pCallbackAdBreakDone, { id:adId } );
+           triggerAdPostfix( pRValueCopy );
+         },
+       });
+      }
+
+      function ensureAspectRatio() {
+        if (canvasElement === undefined) {
+          return;
+        }
+
+        if (!CHANGE_ASPECT_RATIO) {
+          return;
+        }
+
+        if (startingHeight === undefined && startingWidth === undefined) {
+          return;
+        }
+
+        canvasElement.classList.add("active");
+
+        const maxWidth = window.innerWidth;
+        const maxHeight = window.innerHeight;
+        var newHeight, newWidth;
+
+        // Find the limiting dimension.
+        var heightQuotient = startingHeight / maxHeight;
+        var widthQuotient = startingWidth / maxWidth;
+
+        if (heightQuotient > widthQuotient) {
+          // Max out on height.
+          newHeight = maxHeight;
+          newWidth = newHeight * startingAspect;
+        } else {
+          // Max out on width.
+          newWidth = maxWidth;
+          newHeight = newWidth / startingAspect;
+        }
+
+        canvasElement.style.height = newHeight + "px";
+        canvasElement.style.width = newWidth + "px";
+      }
+		// To Pause when it detects the Tab is inactive
+      function pause() { // Don't change the name - GX Mobile calls it when the app becomes inactive.
+        if (!canvasElement.classList.contains("active")) { // Wait for the canvas to load.
+          return
+        }
+
+        GM_pause();
+        pauseMenu.hidden = false;
+        canvasElement.classList.add("paused");
+      }
+		// To Resume when it detects the Tab is Active
+      function resume() {
+        GM_unpause();
+        pauseMenu.hidden = true;
+        canvasElement.classList.remove("paused");
+        canvasElement.classList.add("unpaused");
+        enterFullscreenIfSupported();
+        lockOrientationIfSupported();
+      }
+
+      function quitIfSupported() {
+        if (window.oprt && window.oprt.closeTab) { /* GX Mobile API */
+          window.oprt.closeTab();
+        } else if (window.chrome && window.chrome.runtime && window.chrome.runtime.sendMessage) {
+          window.chrome.runtime.sendMessage('mpojjmidmnpcpopbebmecmjdkdbgdeke', { command: 'closeTab' })
+        }
+      }
+
+      function enterFullscreenIfSupported() {
+        if (!window.oprt || !window.oprt.enterFullscreen) { /* GX Mobile API */
+          return;
+        }
+
+        window.oprt.enterFullscreen();
+        let viewStatus = GM_get_view_status();
+        viewStatus.fullscreen = true;
+        GM_set_view_status(viewStatus);
+      }
+
+      function lockOrientationIfSupported() {
+        if (!window.oprt || !window.oprt.lockPortraitOrientation || !window.oprt.lockLandscapeOrientation) { /* GX Mobile API */
+          return;
+        }
+
+        let viewStatus = GM_get_view_status();
+        if (viewStatus.landscape === true && viewStatus.portrait === false) {
+          window.oprt.lockPortraitOrientation();
+        } else if (viewStatus.landscape === false && viewStatus.portrait === true) {
+          window.oprt.lockPortraitOrientation();
+        }
+      }
+		// uh, shit that no one cares about
+      const resizeObserver = new ResizeObserver(() => {
+        window.requestAnimationFrame(ensureAspectRatio);
+        setTimeout(() => window.requestAnimationFrame(ensureAspectRatio), 100);
+      });
+      resizeObserver.observe(document.body);
+
+		// Disable Scrolling on Mobile
+      if (/Android|iPhone|iPod/i.test(navigator.userAgent)) {
+        bodyElement.className = "scrollingDisabled";
+        canvasElement.classList.add("animatedSizeTransitions");
+        outputContainerElement.hidden = true;
+      }
+
+      document.addEventListener("visibilitychange", (event) => {
+        if (document.visibilityState != "visible") {
+          pause();
+        }
+      });
+
+      window.addEventListener("load", (event) => {
+        if ((!window.oprt || !window.oprt.enterFullscreen) && (!window.chrome || !window.chrome.runtime || !window.chrome.runtime.sendMessage)) {
+          quitButton.hidden = true;
+        }
+      });
+
+      setWadLoadCallback(() => {
+        enterFullscreenIfSupported();
+        lockOrientationIfSupported();
+      });
+    </script>
+	<!-- Load Main Game Runner JS File -->
+    <script async type="text/javascript" src="TimeTwisted2-standalone.js"></script>
+  </body>
+</html>
